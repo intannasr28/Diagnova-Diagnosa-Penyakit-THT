@@ -10,3 +10,6 @@ dist-ssr
 
 # local AI/tooling config
 .claude/
+
+# TypeScript incremental build cache
+*.tsbuildinfo
