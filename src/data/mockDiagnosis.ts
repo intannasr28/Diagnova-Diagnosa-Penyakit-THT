@@ -1,6 +1,6 @@
 import type { ConfidenceLevel, DiagnosisResult } from '@/types'
-import { CF_RULES, DISEASE_BY_CODE } from './diseases'
-import { SYMPTOM_BY_CODE } from './symptoms'
+import { CF_RULES, DISEASES, DISEASE_BY_CODE } from './diseases'
+import { SYMPTOMS, SYMPTOM_BY_CODE } from './symptoms'
 
 /**
  * MOCK diagnosis generator for the FRONTEND PROTOTYPE.
@@ -25,6 +25,72 @@ function buildExplanation(diseaseName: string, level: ConfidenceLevel, top: stri
   }[level]
   const symptomsList = top.slice(0, 3).join(', ')
   return `Sistem mendiagnosis ${diseaseName} dengan tingkat keyakinan ${levelText}. Gejala paling berkontribusi: ${symptomsList}.`
+}
+
+function randomInRange(min: number, max: number): number {
+  return Math.random() * (max - min) + min
+}
+
+function shuffled<T>(arr: readonly T[]): T[] {
+  const a = arr.slice()
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/**
+ * Random fallback when the rule-based engine yields no candidates.
+ * Used so the prototype UI never bounces back silently — a banner in the
+ * Result page tells the user this is mock data.
+ */
+function buildRandomFallback(selected: Map<string, number>): DiagnosisResult[] {
+  const picks = shuffled(DISEASES).slice(0, 3)
+
+  // Source symptoms for the contribution chart: user's selection if any,
+  // otherwise fall back to a small slice of the catalog so the UI has rows.
+  const sourceCodes =
+    selected.size > 0
+      ? Array.from(selected.entries())
+      : shuffled(SYMPTOMS).slice(0, 3).map((s) => [s.code, 0.6] as [string, number])
+
+  const cfValues = picks
+    .map(() => parseFloat(randomInRange(0.45, 0.85).toFixed(4)))
+    .sort((a, b) => b - a)
+
+  return picks.map((disease, idx) => {
+    const cfCombined = cfValues[idx]
+    const contributionRaw = sourceCodes.map(([code, userWeight]) => {
+      const expertWeight = parseFloat(randomInRange(0.4, 1.0).toFixed(2))
+      const cfValue = parseFloat((userWeight * expertWeight).toFixed(4))
+      return { code, userWeight, expertWeight, cfValue }
+    })
+    const total = contributionRaw.reduce((sum, c) => sum + c.cfValue, 0) || 1
+    const contributingSymptoms = contributionRaw.map((c) => ({
+      symptomCode: c.code,
+      symptomName: SYMPTOM_BY_CODE[c.code]?.name ?? c.code,
+      userWeight: c.userWeight,
+      expertWeight: c.expertWeight,
+      cfValue: c.cfValue,
+      contributionPercent: parseFloat(((c.cfValue / total) * 100).toFixed(1)),
+    }))
+
+    const level = levelFromCF(cfCombined)
+    return {
+      diseaseCode: disease.code,
+      diseaseName: disease.name,
+      diseaseCategory: disease.category,
+      cfValue: cfCombined,
+      cfPercentage: `${(cfCombined * 100).toFixed(1)}%`,
+      confidenceLevel: level,
+      rank: idx + 1,
+      contributingSymptoms,
+      iterationSteps: [],
+      explanation: `Hasil ini dihasilkan secara acak untuk keperluan demo UI prototype — kombinasi gejala yang dipilih belum cocok dengan basis aturan Certainty Factor.`,
+      isMockFallback: true,
+    }
+  })
 }
 
 export function mockDiagnose(
@@ -71,7 +137,7 @@ export function mockDiagnose(
       })
     }
 
-    if (cfCombined < 0.1) continue
+    if (cfCombined < 0.05) continue
 
     const totalCF = cfPairs.reduce((sum, p) => sum + p.cfValue, 0)
     const contributingSymptoms = cfPairs.map((p) => ({
@@ -101,6 +167,8 @@ export function mockDiagnose(
       ),
     })
   }
+
+  if (results.length === 0) return buildRandomFallback(selected)
 
   return results
     .sort((a, b) => b.cfValue - a.cfValue)

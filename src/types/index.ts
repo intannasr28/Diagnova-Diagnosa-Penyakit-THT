@@ -62,6 +62,7 @@ export interface DiagnosisResult {
   contributingSymptoms: SymptomContribution[]
   iterationSteps: IterationStep[]
   explanation: string
+  isMockFallback?: boolean
 }
 
 export interface CFRule {

@@ -1,8 +1,9 @@
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Calendar,
   ChevronLeft,
+  FlaskConical,
   Printer,
   RotateCcw,
   Share2,
@@ -22,10 +23,29 @@ export function ResultPage() {
   const { result, selectedSymptoms, startedAt, reset } = useConsultationStore()
 
   if (!result || result.length === 0) {
-    return <Navigate to="/konsultasi" replace />
+    return (
+      <PageShell withAurora>
+        <div className="container flex min-h-[60vh] flex-col items-center justify-center py-16 text-center">
+          <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+            Belum ada hasil diagnosa
+          </h1>
+          <p className="mt-3 max-w-md text-sm text-muted-foreground">
+            Anda belum menjalankan sesi konsultasi. Mulai dari halaman konsultasi
+            untuk menandai gejala dan mendapatkan analisis.
+          </p>
+          <Link
+            to="/konsultasi"
+            className={cn(buttonVariants({ size: 'lg' }), 'mt-6')}
+          >
+            Mulai Konsultasi
+          </Link>
+        </div>
+      </PageShell>
+    )
   }
 
   const [primary, ...rest] = result
+  const isFallback = primary.isMockFallback === true
 
   const handlePrint = () => window.print()
   const handleRestart = () => {
@@ -90,6 +110,32 @@ export function ResultPage() {
         <div className="mt-6">
           <MedicalDisclaimer variant="banner" />
         </div>
+
+        {/* Mock-fallback notice (only when engine couldn't find rule-based matches) */}
+        {isFallback && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.35 }}
+            role="note"
+            className="mt-3 flex items-start gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-4 text-sm text-sky-800 dark:text-sky-200"
+          >
+            <FlaskConical className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+            <div>
+              <p className="font-semibold text-foreground">
+                Hasil ini dibuat acak — masih dalam tahap prototype
+              </p>
+              <p className="mt-0.5 leading-relaxed">
+                Kombinasi gejala yang Anda pilih belum cocok dengan basis aturan
+                Certainty Factor pada prototype ini, jadi sistem menampilkan{' '}
+                <strong>mock data acak</strong> sebagai contoh tampilan hasil —
+                bukan perhitungan yang sesungguhnya. Coba pilih kombinasi gejala
+                lain (mis. nyeri telinga + pilek + demam) untuk melihat
+                perhitungan CF asli.
+              </p>
+            </div>
+          </motion.div>
+        )}
 
         {/* Primary diagnosis */}
         <motion.div
