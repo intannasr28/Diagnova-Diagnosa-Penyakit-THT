@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Calendar,
@@ -22,13 +21,9 @@ export function ResultPage() {
   const navigate = useNavigate()
   const { result, selectedSymptoms, startedAt, reset } = useConsultationStore()
 
-  useEffect(() => {
-    if (!result || result.length === 0) {
-      navigate('/konsultasi', { replace: true })
-    }
-  }, [result, navigate])
-
-  if (!result || result.length === 0) return null
+  if (!result || result.length === 0) {
+    return <Navigate to="/konsultasi" replace />
+  }
 
   const [primary, ...rest] = result
 
